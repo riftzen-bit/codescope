@@ -11,6 +11,10 @@ files:
   - node_modules/**/*
   - package.json
 
+extraResources:
+  - from: resources/icon-256.png
+    to: icon-256.png
+
 win:
   target:
     - target: nsis

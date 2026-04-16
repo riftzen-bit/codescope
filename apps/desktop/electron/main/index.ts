@@ -50,7 +50,11 @@ function createWindow(): BrowserWindow {
     height: 800,
     minWidth: 800,
     minHeight: 600,
-    ...(process.platform === 'linux' ? { icon: path.join(__dirname, '../../resources/icon-256.png') } : {}),
+    ...(process.platform === 'linux' ? {
+      icon: app.isPackaged
+        ? path.join(process.resourcesPath, 'icon-256.png')
+        : path.join(__dirname, '../../resources/icon-256.png'),
+    } : {}),
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
       contextIsolation: true,
