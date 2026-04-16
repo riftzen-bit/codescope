@@ -2,6 +2,13 @@
   "name": "@code-review/desktop",
   "version": "0.1.0",
   "private": true,
+  "description": "CodeScope - desktop code review app",
+  "author": "riftzen-bit",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/riftzen-bit/codescope.git",
+    "directory": "apps/desktop"
+  },
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",

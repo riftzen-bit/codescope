@@ -28,6 +28,10 @@ linux:
     - target: AppImage
       arch: [x64]
   artifactName: ${productName}-${version}.${ext}
+  category: Development
+
+publish:
+  provider: github
 
 nsis:
   oneClick: false
