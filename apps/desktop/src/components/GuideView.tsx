@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { type JSX, useState } from 'react';
 
 interface GuideStep {
   title: string;
@@ -225,6 +225,7 @@ export function GuideView({ onNavigate }: { onNavigate: (view: string) => void }
   };
 
   const current = GUIDE_STEPS[step];
+  if (!current) return null;
 
   return (
     <div className="guide-view">
