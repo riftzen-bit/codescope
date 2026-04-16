@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.turbo/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+out/
+release/
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini

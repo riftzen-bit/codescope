@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "jsx": "react-jsx",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "paths": {
+      "@/*": ["src/*"],
+      "@code-review/core": ["../../packages/core/src/index.ts"]
+    }
+  },
+  "include": ["electron", "src"],
+  "references": [
+    { "path": "../../packages/core" }
+  ]
+}
