@@ -15,9 +15,9 @@ interface ProjectReviewState {
 }
 
 function applyTheme(theme: Theme): void {
-  let resolved: 'light' | 'dark' = 'light';
-  if (theme === 'dark') {
-    resolved = 'dark';
+  let resolved: 'light' | 'dark' = 'dark';
+  if (theme === 'light') {
+    resolved = 'light';
   } else if (theme === 'system') {
     resolved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   }
@@ -27,12 +27,13 @@ function applyTheme(theme: Theme): void {
 export function App() {
   const [view, setView] = useState<View>('review');
   const [projectReview, setProjectReview] = useState<ProjectReviewState | null>(null);
-  const [theme, setTheme] = useState<Theme>('light');
+  const [theme, setTheme] = useState<Theme>('dark');
+  const [showShortcuts, setShowShortcuts] = useState(false);
 
   useEffect(() => {
     window.api.settingsGet().then((s) => {
-      setTheme(s.theme || 'light');
-      applyTheme(s.theme || 'light');
+      setTheme(s.theme || 'dark');
+      applyTheme(s.theme || 'dark');
     }).catch((err) => { console.error('Failed to load settings:', err); });
   }, []);
 
@@ -74,7 +75,7 @@ export function App() {
 
   const handleRescanProject = useCallback(async () => {
     if (!projectReview) return;
-    const files = await window.api.readProjectFiles(projectReview.projectPath);
+    const { files } = await window.api.readProjectFiles(projectReview.projectPath);
     setProjectReview((prev) => prev ? { ...prev, files } : null);
   }, [projectReview]);
 
@@ -90,8 +91,8 @@ export function App() {
           <div className="nav-logo">
             <div className="nav-logo-mark">
               <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M6 7L10 10L6 13" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <line x1="12" y1="13" x2="15" y2="13" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+                <path d="M5 6L8.5 10L5 14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M11 14H15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
               </svg>
             </div>
             <span className="nav-title">CodeScope</span>
@@ -150,6 +151,45 @@ export function App() {
         </div>
 
         <div className="nav-right">
+          <div style={{ position: 'relative' }}>
+            <button
+              className="nav-btn"
+              onClick={() => setShowShortcuts((s) => !s)}
+              title="Keyboard shortcuts"
+              aria-label="Keyboard shortcuts"
+            >
+              <svg className="nav-btn-icon" viewBox="0 0 12 12" fill="none">
+                <circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="0.8"/>
+                <path d="M4.5 4.5a1.5 1.5 0 113 0c0 .75-.75 1-1.5 1.5V7M6 9v.01" stroke="currentColor" strokeWidth="0.8" strokeLinecap="round"/>
+              </svg>
+            </button>
+            {showShortcuts && (
+              <div
+                className="shortcuts-panel"
+                role="dialog"
+                aria-label="Keyboard shortcuts"
+              >
+                <div className="shortcuts-panel-header">
+                  <span>Keyboard shortcuts</span>
+                  <button
+                    className="shortcuts-close"
+                    onClick={() => setShowShortcuts(false)}
+                    aria-label="Close"
+                  >
+                    &times;
+                  </button>
+                </div>
+                <dl className="shortcuts-list">
+                  <dt><kbd>Ctrl</kbd>+<kbd>Enter</kbd></dt>
+                  <dd>Run review</dd>
+                  <dt><kbd>Esc</kbd></dt>
+                  <dd>Cancel a running review</dd>
+                  <dt>Drag &amp; drop</dt>
+                  <dd>Load a file into the editor</dd>
+                </dl>
+              </div>
+            )}
+          </div>
           <button
             className="nav-btn"
             onClick={() => handleThemeChange(theme === 'dark' ? 'light' : 'dark')}
@@ -167,12 +207,6 @@ export function App() {
             )}
           </button>
 
-          <div className="nav-divider" />
-
-          <div className="nav-status">
-            <div className="nav-status-dot" />
-            READY
-          </div>
         </div>
       </nav>
 

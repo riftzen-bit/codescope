@@ -9,9 +9,9 @@ import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { getSettingsDir } from './store.js';
-import { createWriteQueue } from './writeQueue.js';
+import { createWriteQueue, atomicWriteFile } from './writeQueue.js';
 
-// u2500u2500 Types u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500
+// ── Types ───────────────────────────────────────────────────────────────────
 
 export interface HistoryEntry {
   id: string;
@@ -37,7 +37,7 @@ export interface HistoryEntry {
 
 const MAX_ENTRIES = 50;
 
-// u2500u2500 File operations u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500
+// ── File operations ─────────────────────────────────────────────────────────
 
 function getHistoryPath(): string {
   return path.join(getSettingsDir(), 'history.json');
@@ -58,39 +58,53 @@ function isValidEntry(v: unknown): v is HistoryEntry {
     && typeof e.createdAt === 'number';
 }
 
-async function loadHistory(): Promise<HistoryEntry[]> {
+/**
+ * Load from disk. `cacheable: true` means the result faithfully represents
+ * the file (missing file → []), so the caller may cache it. `cacheable: false`
+ * means a transient error (EACCES, EIO, parse failure) — the caller MUST NOT
+ * cache, otherwise a one-off read glitch poisons the cache until process exit.
+ */
+async function loadHistory(): Promise<{ entries: HistoryEntry[]; cacheable: boolean }> {
   try {
     const data = await fs.readFile(getHistoryPath(), 'utf-8');
     const parsed = JSON.parse(data);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter(isValidEntry);
-  } catch {
-    return [];
+    if (!Array.isArray(parsed)) return { entries: [], cacheable: true };
+    return { entries: parsed.filter(isValidEntry), cacheable: true };
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException | null)?.code;
+    if (code === 'ENOENT') return { entries: [], cacheable: true };
+    console.error('loadHistory: transient error, not caching result:', err);
+    return { entries: [], cacheable: false };
   }
 }
 
 const enqueueWrite = createWriteQueue();
 
 async function saveHistory(entries: HistoryEntry[]): Promise<void> {
-  return enqueueWrite(async () => {
+  const target = getHistoryPath();
+  return enqueueWrite(target, async () => {
     await fs.mkdir(getSettingsDir(), { recursive: true });
-    await fs.writeFile(getHistoryPath(), JSON.stringify(entries, null, 2), 'utf-8');
+    await atomicWriteFile(target, JSON.stringify(entries, null, 2));
   });
 }
 
-// u2500u2500 Public API u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500
+// ── Public API ──────────────────────────────────────────────────────────────
 
 let cached: HistoryEntry[] | null = null;
 
 export async function getHistory(): Promise<HistoryEntry[]> {
-  if (!cached) {
-    cached = await loadHistory();
-  }
-  return cached;
+  if (cached) return cached;
+  const { entries, cacheable } = await loadHistory();
+  if (cacheable) cached = entries;
+  return entries;
 }
 
 export async function addHistoryEntry(entry: Omit<HistoryEntry, 'id' | 'createdAt'>): Promise<HistoryEntry> {
-  const entries = await getHistory();
+  // Defensive copy: getHistory() returns the live cached array by reference.
+  // Two concurrent addHistoryEntry calls would otherwise share the same
+  // array and could interleave unshift/truncate between awaits, producing
+  // surprising ordering and transient length > MAX_ENTRIES.
+  const entries = [...await getHistory()];
   const newEntry: HistoryEntry = {
     ...entry,
     id: crypto.randomUUID(),

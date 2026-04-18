@@ -1,8 +1,12 @@
+import { useEffect, useRef } from 'react';
 import type { Finding, Severity } from '../types';
 
 interface Props {
   finding: Finding;
+  focused?: boolean;
+  isNew?: boolean;
   onLineClick?: (line: number) => void;
+  onDismiss?: (finding: Finding) => void;
 }
 
 function sevClass(s: Severity): string {
@@ -38,16 +42,32 @@ function SevBars({ severity }: { severity: Severity }) {
   );
 }
 
-export function FindingCard({ finding, onLineClick }: Props) {
+export function FindingCard({ finding, focused, isNew, onLineClick, onDismiss }: Props) {
   const { severity, category, line, title, description, suggestion } = finding;
   const cls = sevClass(severity);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (focused) ref.current?.scrollIntoView({ block: 'nearest' });
+  }, [focused]);
 
   return (
-    <div className={`finding-card ${cls}`}>
+    <div ref={ref} className={`finding-card ${cls}${focused ? ' finding-focused' : ''}${isNew ? ' finding-new' : ''}`}>
       <div className="finding-top">
         <SevBars severity={severity} />
         <span className={`sev-label ${cls}`}>{severity}</span>
+        {isNew && <span className="finding-new-badge" title="New since previous review">NEW</span>}
         <span className="finding-title">{title}</span>
+        {onDismiss && (
+          <button
+            className="finding-dismiss"
+            onClick={() => onDismiss(finding)}
+            title="Dismiss this finding (hide in future reviews)"
+            aria-label="Dismiss finding"
+          >
+            ×
+          </button>
+        )}
       </div>
       <div className="finding-meta">
         {category}

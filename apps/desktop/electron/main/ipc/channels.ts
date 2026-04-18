@@ -5,6 +5,7 @@ export const Channels = {
   REVIEW_STREAM_CHUNK: 'review:stream:chunk',
   REVIEW_STREAM_DONE: 'review:stream:done',
   REVIEW_STREAM_ERROR: 'review:stream:error',
+  REVIEW_CANCEL: 'review:cancel',
 
   // API Keys
   KEYS_SAVE: 'keys:save',

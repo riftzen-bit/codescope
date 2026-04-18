@@ -7,6 +7,25 @@ import {
 } from '../Icons';
 import type { ProviderConfig } from './types';
 
+/**
+ * Model catalog — shown in Settings and used as the source of truth for the
+ * default model in `settings/store.ts`.
+ *
+ * UPDATE CADENCE: hand-edit this list whenever any vendor ships a new model
+ * or deprecates one of the IDs below. At minimum, audit every release cycle
+ * (target: once per month). The IDs here are sent verbatim to the vendor
+ * SDKs — a stale ID returns `model_not_found` at runtime with no UI
+ * affordance for the user to recover, so treat drift as a bug, not a cleanup
+ * chore.
+ *
+ * When removing a model ID, also update `DEFAULT_SETTINGS.providers` in
+ * `electron/main/settings/store.ts` if that model was the default; a
+ * default pointing at a dead ID breaks first-run for every new install.
+ *
+ * Future work: fetch the live list from each provider's /models endpoint
+ * when an API key is configured, and fall back to this static catalog only
+ * when the network call fails or the provider is keyless.
+ */
 export const PROVIDER_CONFIGS: Record<string, ProviderConfig> = {
   anthropic: {
     id: 'anthropic',
@@ -18,7 +37,7 @@ export const PROVIDER_CONFIGS: Record<string, ProviderConfig> = {
     Icon: AnthropicIcon,
     models: [
       { id: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6', description: 'Fast, balanced' },
-      { id: 'claude-opus-4-6', label: 'Claude Opus 4.6', description: 'Most capable' },
+      { id: 'claude-opus-4-7', label: 'Claude Opus 4.7', description: 'Most capable' },
       { id: 'claude-haiku-4-5', label: 'Claude Haiku 4.5', description: 'Fastest, lightweight' },
     ],
   },
@@ -80,7 +99,7 @@ export const PROVIDER_CONFIGS: Record<string, ProviderConfig> = {
     Icon: ClaudeCodeIcon,
     models: [
       { id: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6', description: 'Fast, balanced' },
-      { id: 'claude-opus-4-6', label: 'Claude Opus 4.6', description: 'Most capable' },
+      { id: 'claude-opus-4-7', label: 'Claude Opus 4.7', description: 'Most capable' },
       { id: 'claude-haiku-4-5', label: 'Claude Haiku 4.5', description: 'Fastest, lightweight' },
     ],
   },

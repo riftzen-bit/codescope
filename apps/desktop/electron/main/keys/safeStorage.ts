@@ -13,14 +13,15 @@ import { safeStorage } from 'electron';
 import fs from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { getSettingsDir, getKeysPath } from '../settings/store.js';
+import { atomicWriteFile } from '../settings/writeQueue.js';
 
-// u2500u2500 Types u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500
+// ── Types ───────────────────────────────────────────────────────────────────
 
 interface KeyStore {
   [key: string]: string;
 }
 
-// u2500u2500 Validation u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500
+// ── Validation ──────────────────────────────────────────────────────────────
 
 const VALID_PROVIDER_RE = /^[a-z0-9_-]{1,64}$/;
 
@@ -32,7 +33,7 @@ function assertValidProvider(provider: string): void {
 
 const keyName = (provider: string) => `key_${provider}`;
 
-// u2500u2500 File operations u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500
+// ── File operations ─────────────────────────────────────────────────────────
 
 async function ensureDir(): Promise<void> {
   await fs.mkdir(getSettingsDir(), { recursive: true });
@@ -54,19 +55,36 @@ async function loadKeys(): Promise<KeyStore> {
 
 async function restrictFileToCurrentUser(filePath: string): Promise<void> {
   if (process.platform !== 'win32') return;
+  // Prefer the fully-qualified DOMAIN\username when USERDOMAIN is populated
+  // (domain-joined or modern Windows installs). On a domain-joined machine a
+  // bare `username` can collide with a local account of the same short name
+  // but different SID, applying the grant to the wrong principal. Fall back
+  // to the unqualified name only if USERDOMAIN is unavailable.
   const username = process.env.USERNAME;
+  const userDomain = process.env.USERDOMAIN;
   if (!username) {
-    console.warn('Skipping Windows ACL restriction: USERNAME environment variable not set');
+    console.error(
+      '[safeStorage] SECURITY: USERNAME not set — cannot restrict ACLs on ' +
+      `${filePath}; file remains readable by any principal with default NTFS ACLs. ` +
+      'Encrypted key values are still safe (protected by safeStorage), but the ' +
+      'on-disk container is not ACL-restricted. Investigate the environment.',
+    );
     return;
   }
+  const principal = userDomain ? `${userDomain}\\${username}` : username;
   try {
     await new Promise<void>((resolve, reject) => {
-      execFile('icacls', [filePath, '/inheritance:r', '/grant:r', `${username}:F`], (err) => {
+      execFile('icacls', [filePath, '/inheritance:r', '/grant:r', `${principal}:F`], (err) => {
         if (err) reject(err); else resolve();
       });
     });
   } catch (err) {
-    console.error('Failed to set Windows ACL on keys file:', err);
+    console.error(
+      `[safeStorage] SECURITY: icacls failed for principal ${principal} on ${filePath}:`,
+      err,
+      '— file may retain inherited ACLs. Encrypted keys are still protected by ' +
+      'safeStorage but the container is not ACL-locked.',
+    );
   }
 }
 
@@ -74,11 +92,11 @@ async function saveKeys(keys: KeyStore): Promise<void> {
   cachedKeys = keys;
   await ensureDir();
   const keysPath = getKeysPath();
-  await fs.writeFile(keysPath, JSON.stringify(keys, null, 2), { encoding: 'utf-8', mode: 0o600 });
+  await atomicWriteFile(keysPath, JSON.stringify(keys, null, 2), { mode: 0o600 });
   await restrictFileToCurrentUser(keysPath);
 }
 
-// u2500u2500 Public API u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500
+// ── Public API ──────────────────────────────────────────────────────────────
 
 export async function saveKey(provider: string, key: string): Promise<void> {
   assertValidProvider(provider);

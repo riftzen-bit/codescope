@@ -15,6 +15,10 @@ export interface ChatResponse {
 export interface AIProvider {
   readonly name: string;
   readonly model: string;
-  chat(messages: ChatMessage[]): Promise<ChatResponse>;
-  stream(messages: ChatMessage[], onChunk: (text: string) => void): Promise<ChatResponse>;
+  chat(messages: ChatMessage[], signal?: AbortSignal): Promise<ChatResponse>;
+  stream(
+    messages: ChatMessage[],
+    onChunk: (text: string) => void,
+    signal?: AbortSignal,
+  ): Promise<ChatResponse>;
 }

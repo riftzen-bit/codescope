@@ -41,6 +41,9 @@ contextBridge.exposeInMainWorld('api', {
 
     return cleanup;
   },
+  reviewCancel(): Promise<void> {
+    return ipcRenderer.invoke(Channels.REVIEW_CANCEL);
+  },
   keysSave(provider: string, key: string): Promise<void> {
     return ipcRenderer.invoke(Channels.KEYS_SAVE, provider, key);
   },
@@ -59,7 +62,12 @@ contextBridge.exposeInMainWorld('api', {
   readFiles(folderPath: string, extensions?: string[]): Promise<Array<{ name: string; path: string; content: string }>> {
     return ipcRenderer.invoke(Channels.APP_READ_FILES, folderPath, extensions);
   },
-  readProjectFiles(folderPath: string): Promise<Array<{ name: string; path: string; relativePath: string; content: string }>> {
+  readProjectFiles(folderPath: string): Promise<{
+    files: Array<{ name: string; path: string; relativePath: string; content: string }>;
+    truncated: boolean;
+    limit: number;
+    totalFound: number;
+  }> {
     return ipcRenderer.invoke(Channels.APP_READ_PROJECT_FILES, folderPath);
   },
 
@@ -70,8 +78,9 @@ contextBridge.exposeInMainWorld('api', {
   unwatchProject(): Promise<void> {
     return ipcRenderer.invoke(Channels.APP_UNWATCH_PROJECT);
   },
-  onProjectFilesChanged(callback: () => void): () => void {
-    const listener = () => callback();
+  onProjectFilesChanged(callback: (changedPath: string | null) => void): () => void {
+    const listener = (_e: Electron.IpcRendererEvent, changedPath: string | null) =>
+      callback(changedPath ?? null);
     ipcRenderer.on(Channels.APP_PROJECT_FILES_CHANGED, listener);
     return () => {
       ipcRenderer.removeListener(Channels.APP_PROJECT_FILES_CHANGED, listener);

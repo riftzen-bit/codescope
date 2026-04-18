@@ -1,6 +1,8 @@
 import { useState, useCallback, useRef } from 'react';
 import type { ReviewRequest, ReviewResult } from '../types';
 
+export type ReviewRunRequest = ReviewRequest & { provider: string };
+
 export type ReviewState =
   | { status: 'idle' }
   | { status: 'running' }
@@ -17,14 +19,16 @@ export function useReview() {
       unsubRef.current();
       unsubRef.current = null;
     }
+    window.api.reviewCancel().catch(() => { /* best-effort */ });
     setState({ status: 'idle' });
   }, []);
 
-  const run = useCallback((req: ReviewRequest) => {
+  const run = useCallback((req: ReviewRunRequest) => {
     // Cancel any in-flight review
     if (unsubRef.current) {
       unsubRef.current();
       unsubRef.current = null;
+      window.api.reviewCancel().catch(() => { /* best-effort */ });
     }
 
     setState({ status: 'streaming', chunks: '' });

@@ -34,6 +34,9 @@ jobs:
       - name: Type check
         run: pnpm run lint
 
+      - name: Unit tests
+        run: pnpm run test
+
       - name: Build desktop app
         run: pnpm --filter @code-review/desktop build
 

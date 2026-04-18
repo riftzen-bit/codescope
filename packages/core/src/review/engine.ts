@@ -6,14 +6,17 @@ import { detectLanguage, parseReviewResponse } from './parser.js';
 export class ReviewEngine {
   constructor(private provider: AIProvider) {}
 
-  async review(request: ReviewRequest): Promise<ReviewResult> {
+  async review(request: ReviewRequest, signal?: AbortSignal): Promise<ReviewResult> {
     const language = request.language ?? detectLanguage(request.code, request.filename);
     const userMessage = buildUserMessage(request.code, language, request.filename, request.rules);
 
-    const response = await this.provider.chat([
-      { role: 'system', content: SYSTEM_PROMPT },
-      { role: 'user', content: userMessage },
-    ]);
+    const response = await this.provider.chat(
+      [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: userMessage },
+      ],
+      signal,
+    );
 
     return parseReviewResponse(
       response.text,
@@ -27,6 +30,7 @@ export class ReviewEngine {
   async reviewStream(
     request: ReviewRequest,
     onChunk: (text: string) => void,
+    signal?: AbortSignal,
   ): Promise<ReviewResult> {
     const language = request.language ?? detectLanguage(request.code, request.filename);
     const userMessage = buildUserMessage(request.code, language, request.filename, request.rules);
@@ -37,6 +41,7 @@ export class ReviewEngine {
         { role: 'user', content: userMessage },
       ],
       onChunk,
+      signal,
     );
 
     return parseReviewResponse(

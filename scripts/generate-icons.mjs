@@ -4,6 +4,13 @@
  * Pure Node.js icon generator — no external dependencies.
  * Creates resources/icon.png (1024x1024) from computed pixels.
  *
+ * Design — "Ember" identity:
+ *   - Warm plum-ink background (app's --bg-deep → --bg-elevated diagonal).
+ *   - Two cream-paper code brackets framing a stylized amber ember inside.
+ *   - Subtle radial highlight top-left, vignette bottom-right for depth.
+ *   - Fine amber baseline under the ember, echoing a code cursor.
+ *   - Inner rounded-rect inset so the ink reads as a pressed tile.
+ *
  * electron-builder auto-generates platform-specific formats:
  *   - Windows: icon.ico
  *   - macOS:   icon.icns
@@ -20,27 +27,48 @@ import zlib from 'node:zlib';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..', 'apps', 'desktop', 'resources');
 
-// ── Color palette ───────────────────────────────────────────────────────────
-const C_BG1 = [79, 70, 229];    // #4F46E5 indigo
-const C_BG2 = [124, 58, 237];   // #7C3AED purple
-const C_WHITE = [255, 255, 255];
-const C_BRACKET = [224, 231, 255]; // #E0E7FF
-const C_CHECK = [52, 211, 153];   // #34D399 emerald
+// ── Palette (matches app tokens in globals.css) ──────────────────────────────
+const C_BG_DEEP = [18, 15, 21];       // #120F15 — --bg-deep
+const C_BG      = [29, 24, 35];       // #1D1823 — --bg-secondary
+const C_BG_HI   = [44, 37, 53];       // warm-plum highlight
+const C_EMBER   = [232, 154, 60];     // #E89A3C — --accent
+const C_EMBER_HI= [255, 198, 115];    // hotter ember core
+const C_EMBER_DK= [179, 94, 26];      // ember base, darker
+const C_CREAM   = [241, 235, 226];    // #F1EBE2 — --text
+const C_CREAM_DIM = [200, 190, 175];
+const C_INK_SHADOW = [8, 5, 12];
 
 // ── Math helpers ────────────────────────────────────────────────────────────
 function lerp(a, b, t) { return a + (b - a) * t; }
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+function smooth(t) { return t * t * (3 - 2 * t); }
 function dist(x1, y1, x2, y2) { return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2); }
 
 function lerpColor(c1, c2, t) {
-  return [lerp(c1[0], c2[0], t), lerp(c1[1], c2[1], t), lerp(c1[2], c2[2], t)];
+  const tc = clamp(t, 0, 1);
+  return [lerp(c1[0], c2[0], tc), lerp(c1[1], c2[1], tc), lerp(c1[2], c2[2], tc)];
+}
+
+function blend(base, top, alpha) {
+  const a = clamp(alpha, 0, 1);
+  return [
+    base[0] + (top[0] - base[0]) * a,
+    base[1] + (top[1] - base[1]) * a,
+    base[2] + (top[2] - base[2]) * a,
+  ];
 }
 
 /** Signed distance to a rounded rectangle centered at (cx,cy) with half-sizes (hw,hh) and radius r. */
 function sdRoundedRect(x, y, cx, cy, hw, hh, r) {
   const dx = Math.max(Math.abs(x - cx) - hw + r, 0);
   const dy = Math.max(Math.abs(y - cy) - hh + r, 0);
-  return Math.sqrt(dx * dx + dy * dy) - r;
+  const outside = Math.sqrt(dx * dx + dy * dy) - r;
+  // For interior points we also want a negative SD, so compute the max-norm
+  // shrinkage and take min(outside, inside-negative).
+  const qx = Math.abs(x - cx) - hw + r;
+  const qy = Math.abs(y - cy) - hh + r;
+  const inside = Math.min(Math.max(qx, qy), 0);
+  return outside + inside;
 }
 
 /** Signed distance to a circle. Negative = inside. */
@@ -61,121 +89,151 @@ function fill(sd, aa = 1.5) {
   return clamp(0.5 - sd / aa, 0, 1);
 }
 
-/** Anti-aliased stroke: ring shape at distance `radius` with `width`. */
-function stroke(sd, radius, width, aa = 1.5) {
-  return fill(Math.abs(sd - radius) - width / 2, aa);
+// ── Bracket path — cleaner curly { shape via Bezier-approximating arcs ──────
+// Uses a fan of segments to approximate a curly bracket with a crisp center notch.
+
+function sdCurlyBracket(x, y, cx, topY, botY, mirrored, thickness = 22) {
+  const midY = (topY + botY) / 2;
+  const bulge = 58;      // depth of center notch
+  const shoulder = 70;   // width of outer serif
+  const quarter = (botY - topY) * 0.22;
+  const s = mirrored ? -1 : 1;
+
+  // Control points
+  const p0x = cx + s * shoulder,     p0y = topY - 12;      // top serif tip
+  const p1x = cx,                    p1y = topY + 14;      // top turn
+  const p2x = cx,                    p2y = midY - quarter; // upper arm
+  const p3x = cx - s * bulge,        p3y = midY;           // notch
+  const p4x = cx,                    p4y = midY + quarter; // lower arm
+  const p5x = cx,                    p5y = botY - 14;      // bottom turn
+  const p6x = cx + s * shoulder,     p6y = botY + 12;      // bottom serif tip
+
+  // Fan of segments between the control points
+  let d = sdSegment(x, y, p0x, p0y, p1x, p1y);
+  d = Math.min(d, sdSegment(x, y, p1x, p1y, p2x, p2y));
+  d = Math.min(d, sdSegment(x, y, p2x, p2y, p3x, p3y));
+  d = Math.min(d, sdSegment(x, y, p3x, p3y, p4x, p4y));
+  d = Math.min(d, sdSegment(x, y, p4x, p4y, p5x, p5y));
+  d = Math.min(d, sdSegment(x, y, p5x, p5y, p6x, p6y));
+
+  // Stroke: distance to path minus half-thickness
+  return d - thickness / 2;
 }
 
-// ── Bracket path builder ────────────────────────────────────────────────────
-// Approximate curly brackets using line segments
+// ── Ember (flame) — stylised teardrop, drawn as a union of circles ──────────
 
-function sdLeftBracket(x, y) {
-  // { bracket — a series of connected arcs approximated as segments
-  const cx = 310, topY = 280, botY = 740, midY = 510;
-  const indent = 80, bulge = 50;
-
-  // Top curve
-  const d1 = sdSegment(x, y, cx, topY, cx, midY - 40);
-  // Middle notch going left
-  const d2 = sdSegment(x, y, cx, midY - 40, cx - bulge, midY);
-  const d3 = sdSegment(x, y, cx - bulge, midY, cx, midY + 40);
-  // Bottom curve
-  const d4 = sdSegment(x, y, cx, midY + 40, cx, botY);
-  // Top serif
-  const d5 = sdSegment(x, y, cx, topY, cx + indent, topY - 20);
-  // Bottom serif
-  const d6 = sdSegment(x, y, cx, botY, cx + indent, botY + 20);
-
-  return Math.min(d1, d2, d3, d4, d5, d6);
-}
-
-function sdRightBracket(x, y) {
-  const cx = 714, topY = 280, botY = 740, midY = 510;
-  const indent = 80, bulge = 50;
-
-  const d1 = sdSegment(x, y, cx, topY, cx, midY - 40);
-  const d2 = sdSegment(x, y, cx, midY - 40, cx + bulge, midY);
-  const d3 = sdSegment(x, y, cx + bulge, midY, cx, midY + 40);
-  const d4 = sdSegment(x, y, cx, midY + 40, cx, botY);
-  const d5 = sdSegment(x, y, cx, topY, cx - indent, topY - 20);
-  const d6 = sdSegment(x, y, cx, botY, cx - indent, botY + 20);
-
-  return Math.min(d1, d2, d3, d4, d5, d6);
+function sdEmber(x, y, cx, cy, scale) {
+  // Teardrop: a large bottom bulb + a tapered top. Approximate via blended
+  // circles. The union keeps it C1-continuous enough that the AA edge reads
+  // smooth at 128px and up.
+  const r1 = 90 * scale;   // bottom bulb
+  const r2 = 70 * scale;   // mid
+  const r3 = 48 * scale;   // shoulder
+  const r4 = 26 * scale;   // tip
+  const d1 = dist(x, y, cx,               cy + 60 * scale) - r1;
+  const d2 = dist(x, y, cx + 10 * scale,  cy - 10 * scale) - r2;
+  const d3 = dist(x, y, cx - 8 * scale,   cy - 70 * scale) - r3;
+  const d4 = dist(x, y, cx + 4 * scale,   cy - 110 * scale) - r4;
+  // Smooth-min union
+  const k = 18 * scale;
+  function smin(a, b) {
+    const h = clamp(0.5 + 0.5 * (b - a) / k, 0, 1);
+    return lerp(b, a, h) - k * h * (1 - h);
+  }
+  return smin(smin(smin(d1, d2), d3), d4);
 }
 
 // ── Pixel shader ────────────────────────────────────────────────────────────
 
 function shade(x, y, size) {
-  // Normalized coordinates
-  const u = x / size, v = y / size;
+  // Scale all design constants (authored at 1024) to the target size.
+  const S = size / 1024;
+  const sx = x / S, sy = y / S;  // "design space" coords
 
-  // Background: rounded rect with gradient
+  // Background: large rounded rect, 21.5% radius — a soft iOS-ish tile.
   const bgDist = sdRoundedRect(x, y, size / 2, size / 2, size / 2, size / 2, size * 0.215);
   const bgAlpha = fill(bgDist);
   if (bgAlpha < 0.001) return [0, 0, 0, 0];
 
-  const gradT = clamp((u + v) / 2, 0, 1);
-  let r = lerp(C_BG1[0], C_BG2[0], gradT);
-  let g = lerp(C_BG1[1], C_BG2[1], gradT);
-  let b = lerp(C_BG1[2], C_BG2[2], gradT);
+  // Base ink: diagonal warm-plum gradient.
+  const gradT = clamp((sx + sy) / 2048, 0, 1);
+  let rgb = lerpColor(C_BG_DEEP, C_BG, smooth(gradT));
 
-  // Subtle inner glow at top-left
-  const glowDist = dist(x, y, size * 0.3, size * 0.3);
-  const glowT = clamp(1 - glowDist / (size * 0.6), 0, 0.15);
-  r = lerp(r, 255, glowT);
-  g = lerp(g, 255, glowT);
-  b = lerp(b, 255, glowT);
+  // Radial highlight top-left (subtle, adds tactile depth without glow).
+  const hi = clamp(1 - dist(sx, sy, 320, 280) / 820, 0, 1);
+  rgb = blend(rgb, C_BG_HI, hi * 0.35);
 
-  // Left bracket {
-  const lbDist = sdLeftBracket(x, y);
-  const lbAlpha = fill(lbDist - 18, 2) * 0.85;
-  if (lbAlpha > 0) {
-    r = lerp(r, C_BRACKET[0], lbAlpha);
-    g = lerp(g, C_BRACKET[1], lbAlpha);
-    b = lerp(b, C_BRACKET[2], lbAlpha);
+  // Vignette bottom-right.
+  const vig = clamp(dist(sx, sy, 820, 860) / 780, 0, 1);
+  rgb = blend(rgb, C_INK_SHADOW, vig * 0.22);
+
+  // Inner inset "pressed tile" outline — 1.5px darker hairline inside the bg.
+  const innerDist = sdRoundedRect(sx, sy, 512, 512, 440, 440, 180);
+  const insetRing = clamp(0.5 - Math.abs(innerDist - 0) / 2, 0, 1);
+  rgb = blend(rgb, C_INK_SHADOW, insetRing * 0.25);
+
+  // Ember glow — large soft amber radial BEHIND the ember, behind brackets.
+  const glowR = dist(sx, sy, 512, 560);
+  const glow = clamp(1 - glowR / 420, 0, 1);
+  rgb = blend(rgb, C_EMBER_DK, Math.pow(glow, 2.2) * 0.55);
+
+  // Ember body.
+  const emberSD = sdEmber(sx, sy, 512, 560, 1.0);
+  const emberA = fill(emberSD, 2.5);
+  if (emberA > 0) {
+    // Inner hot core: lerp from outer amber to bright tip based on verticality.
+    const coreT = clamp((500 - sy) / 260, 0, 1);
+    const emberColor = lerpColor(C_EMBER, C_EMBER_HI, smooth(coreT));
+    rgb = blend(rgb, emberColor, emberA);
   }
 
-  // Right bracket }
-  const rbDist = sdRightBracket(x, y);
-  const rbAlpha = fill(rbDist - 18, 2) * 0.85;
-  if (rbAlpha > 0) {
-    r = lerp(r, C_BRACKET[0], rbAlpha);
-    g = lerp(g, C_BRACKET[1], rbAlpha);
-    b = lerp(b, C_BRACKET[2], rbAlpha);
+  // Inner ember highlight — small bright streak near the top of the flame.
+  const streakSD = sdEmber(sx - 6, sy + 40, 512, 560, 0.55);
+  const streakA = fill(streakSD, 2.5);
+  if (streakA > 0) {
+    rgb = blend(rgb, C_EMBER_HI, streakA * 0.85);
   }
 
-  // Magnifying glass — circle
-  const glassCx = size * 0.625, glassCy = size * 0.332;
-  const glassR = size * 0.137;
-  const ringDist = sdCircle(x, y, glassCx, glassCy, glassR);
-  const ringAlpha = fill(Math.abs(ringDist) - size * 0.019, 1.5) * 0.95;
-  if (ringAlpha > 0) {
-    r = lerp(r, C_WHITE[0], ringAlpha);
-    g = lerp(g, C_WHITE[1], ringAlpha);
-    b = lerp(b, C_WHITE[2], ringAlpha);
+  // Brackets — cream-paper, symmetric, framing the ember.
+  const bracketThickness = 30;
+  const lb = sdCurlyBracket(sx, sy, 276, 260, 860, false, bracketThickness);
+  const rb = sdCurlyBracket(sx, sy, 748, 260, 860, true,  bracketThickness);
+  const lbA = fill(lb, 2.5);
+  const rbA = fill(rb, 2.5);
+
+  if (lbA > 0) {
+    // Subtle right-edge shadow so the cream reads as relief against ink.
+    const shadowSD = sdCurlyBracket(sx - 4, sy + 4, 276, 260, 860, false, bracketThickness);
+    const shA = fill(shadowSD, 2.5) * 0.35;
+    rgb = blend(rgb, C_INK_SHADOW, shA);
+    rgb = blend(rgb, C_CREAM, lbA);
+  }
+  if (rbA > 0) {
+    const shadowSD = sdCurlyBracket(sx - 4, sy + 4, 748, 260, 860, true, bracketThickness);
+    const shA = fill(shadowSD, 2.5) * 0.35;
+    rgb = blend(rgb, C_INK_SHADOW, shA);
+    rgb = blend(rgb, C_CREAM, rbA);
   }
 
-  // Magnifying glass — handle
-  const handleDist = sdSegment(x, y, glassCx + glassR * 0.71, glassCy + glassR * 0.71, glassCx + glassR * 1.5, glassCy + glassR * 1.5);
-  const handleAlpha = fill(handleDist - size * 0.019, 1.5) * 0.95;
-  if (handleAlpha > 0) {
-    r = lerp(r, C_WHITE[0], handleAlpha);
-    g = lerp(g, C_WHITE[1], handleAlpha);
-    b = lerp(b, C_WHITE[2], handleAlpha);
+  // Amber baseline under the ember — a fine cursor-line accent.
+  const baselineSD = Math.abs(sy - 800) - 3;
+  const baselineMask = Math.abs(sx - 512) < 140 ? 1 : 0;
+  const baseA = fill(baselineSD, 1.5) * baselineMask;
+  if (baseA > 0) rgb = blend(rgb, C_EMBER_HI, baseA * 0.9);
+
+  // Three amber dots below baseline — hints of "findings".
+  for (let i = -1; i <= 1; i++) {
+    const dotSD = dist(sx, sy, 512 + i * 34, 830) - 5;
+    const dotA = fill(dotSD, 1.5);
+    if (dotA > 0) rgb = blend(rgb, C_CREAM_DIM, dotA * 0.6);
   }
 
-  // Checkmark inside magnifying glass
-  const chk1 = sdSegment(x, y, glassCx - glassR * 0.45, glassCy, glassCx - glassR * 0.1, glassCy + glassR * 0.35);
-  const chk2 = sdSegment(x, y, glassCx - glassR * 0.1, glassCy + glassR * 0.35, glassCx + glassR * 0.5, glassCy - glassR * 0.4);
-  const chkDist = Math.min(chk1, chk2);
-  const chkAlpha = fill(chkDist - size * 0.017, 1.5);
-  if (chkAlpha > 0) {
-    r = lerp(r, C_CHECK[0], chkAlpha);
-    g = lerp(g, C_CHECK[1], chkAlpha);
-    b = lerp(b, C_CHECK[2], chkAlpha);
-  }
-
-  return [Math.round(r), Math.round(g), Math.round(b), Math.round(bgAlpha * 255)];
+  return [
+    Math.round(clamp(rgb[0], 0, 255)),
+    Math.round(clamp(rgb[1], 0, 255)),
+    Math.round(clamp(rgb[2], 0, 255)),
+    Math.round(bgAlpha * 255),
+  ];
 }
 
 // ── PNG encoder (minimal, spec-compliant) ───────────────────────────────────

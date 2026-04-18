@@ -97,12 +97,38 @@ export function SettingsView({ theme, onThemeChange }: SettingsViewProps) {
     }
   }
 
+  async function handleToggleRedact() {
+    if (!settings) return;
+    try {
+      const updated = await window.api.settingsUpdate({
+        redactSecretsBeforeSend: !settings.redactSecretsBeforeSend,
+      });
+      setSettings(updated);
+    } catch (err) {
+      console.error('Failed to update redactSecretsBeforeSend:', err);
+    }
+  }
+
   async function handleDefaultLanguageChange(lang: string) {
     try {
       const updated = await window.api.settingsUpdate({ defaultLanguage: lang });
       setSettings(updated);
     } catch (err) {
       console.error('Failed to update defaultLanguage:', err);
+    }
+  }
+
+  async function handleStyleProfileChange(text: string) {
+    // Optimistic local update; persist on blur to avoid hammering disk on every keystroke.
+    setSettings((prev) => prev ? { ...prev, styleProfile: text } : prev);
+  }
+
+  async function handleStyleProfileCommit(text: string) {
+    try {
+      const updated = await window.api.settingsUpdate({ styleProfile: text });
+      setSettings(updated);
+    } catch (err) {
+      console.error('Failed to update styleProfile:', err);
     }
   }
 
@@ -311,6 +337,23 @@ export function SettingsView({ theme, onThemeChange }: SettingsViewProps) {
           <div className="sv-pref-divider" />
           <div className="sv-pref-row">
             <div className="sv-pref-info">
+              <span className="sv-pref-label">Redact secrets before sending</span>
+              <span className="sv-pref-hint">
+                Strip obvious credentials (API keys, JWTs, PEM blocks) from code
+                before it reaches the AI provider. Regex-based, best-effort.
+              </span>
+            </div>
+            <button
+              className={`sv-toggle${settings.redactSecretsBeforeSend ? ' sv-toggle--on' : ''}`}
+              onClick={handleToggleRedact}
+              aria-label="Toggle secret redaction"
+            >
+              <span className="sv-toggle-thumb" />
+            </button>
+          </div>
+          <div className="sv-pref-divider" />
+          <div className="sv-pref-row">
+            <div className="sv-pref-info">
               <span className="sv-pref-label">Default language</span>
               <span className="sv-pref-hint">Pre-select language for new reviews</span>
             </div>
@@ -333,6 +376,25 @@ export function SettingsView({ theme, onThemeChange }: SettingsViewProps) {
               <option value="kotlin">Kotlin</option>
               <option value="cpp">C/C++</option>
             </select>
+          </div>
+          <div className="sv-pref-divider" />
+          <div className="sv-pref-row sv-pref-row--stack">
+            <div className="sv-pref-info">
+              <span className="sv-pref-label">Style profile</span>
+              <span className="sv-pref-hint">
+                Extra guidance sent with every review — team conventions,
+                framework preferences, things to ignore. Up to 4,000 characters.
+              </span>
+            </div>
+            <textarea
+              className="sv-pref-textarea"
+              value={settings.styleProfile}
+              maxLength={4000}
+              placeholder="e.g. We use React 19 and server components; avoid class components. Prefer Zod over io-ts. Ignore camelCase vs snake_case style issues."
+              onChange={(e) => handleStyleProfileChange(e.target.value)}
+              onBlur={(e) => handleStyleProfileCommit(e.target.value)}
+              rows={4}
+            />
           </div>
           <div className="sv-pref-divider" />
           <div className="sv-pref-row">

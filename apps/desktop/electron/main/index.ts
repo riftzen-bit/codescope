@@ -97,8 +97,14 @@ app.whenReady().then(async () => {
   // In dev mode the Vite dev server serves via localhost and @vitejs/plugin-react
   // injects an inline HMR preamble script that a strict CSP would block.
   if (!process.env.ELECTRON_RENDERER_URL) {
-    // 'unsafe-inline' for style-src is required: Monaco Editor and React inject
-    // runtime style tags that cannot use nonces without patching the libraries.
+    // style-src retains 'unsafe-inline' because Monaco Editor 0.55's
+    // createStyleSheet() injects <style> elements without a nonce hook, and
+    // Vite's build emits module-scoped CSS-in-JS runtime tags. Strict nonces
+    // would require patching Monaco + a custom HTML-rewrite protocol handler
+    // to stamp per-load nonces onto <script>/<style> tags. Until that lands,
+    // containment rests on script-src 'self' (no inline script execution) and
+    // no remote connect/frame hosts — an attacker cannot inject styles without
+    // first bypassing script-src.
     const cspDirectives = [
       "default-src 'self'",
       "script-src 'self'",
@@ -111,8 +117,9 @@ app.whenReady().then(async () => {
       "base-uri 'self'",
       "form-action 'none'",
       "frame-src 'none'",
+      "frame-ancestors 'none'",
       "child-src 'none'",
-      "worker-src 'self'",
+      "worker-src 'self' blob:",
       "font-src 'self'",
     ];
     session.defaultSession.webRequest.onHeadersReceived((details, callback) => {

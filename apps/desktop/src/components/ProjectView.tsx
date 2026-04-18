@@ -61,12 +61,19 @@ export function ProjectView({ onReviewProject }: Props) {
     setScanError(null);
 
     try {
-      const files = await window.api.readProjectFiles(project.path);
+      const { files, truncated, limit } = await window.api.readProjectFiles(project.path);
       setScanProgress({ current: files.length, total: files.length });
 
       if (files.length === 0) {
         setScanError('No code files found in this project.');
         return;
+      }
+
+      if (truncated) {
+        const ok = await window.api.confirm(
+          `This project has more than ${limit} source files. Only the first ${limit} will be loaded. Continue?`,
+        );
+        if (!ok) return;
       }
 
       onReviewProject(files, project.name, project.path);
@@ -205,7 +212,7 @@ export function ProjectView({ onReviewProject }: Props) {
         </svg>
         <span>
           Automatically skips: node_modules, .git, dist, build, __pycache__, and other common non-source directories.
-          Max 200 files per scan.
+          Max 500 files per scan.
         </span>
       </div>
     </div>

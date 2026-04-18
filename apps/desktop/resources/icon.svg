@@ -1,30 +1,76 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#4F46E5" />
-      <stop offset="100%" stop-color="#7C3AED" />
+      <stop offset="0%" stop-color="#120F15" />
+      <stop offset="100%" stop-color="#1D1823" />
     </linearGradient>
-    <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#E0E7FF" />
-      <stop offset="100%" stop-color="#C7D2FE" />
+    <radialGradient id="hi" cx="0.3" cy="0.28" r="0.8">
+      <stop offset="0%" stop-color="#2C2535" stop-opacity="0.45" />
+      <stop offset="100%" stop-color="#2C2535" stop-opacity="0" />
+    </radialGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.58" r="0.45">
+      <stop offset="0%" stop-color="#B35E1A" stop-opacity="0.55" />
+      <stop offset="100%" stop-color="#B35E1A" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="ember" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0%" stop-color="#FFC673" />
+      <stop offset="60%" stop-color="#E89A3C" />
+      <stop offset="100%" stop-color="#B35E1A" />
     </linearGradient>
   </defs>
 
-  <!-- Rounded square background -->
+  <!-- Base tile -->
   <rect x="0" y="0" width="1024" height="1024" rx="220" ry="220" fill="url(#bg)" />
+  <rect x="0" y="0" width="1024" height="1024" rx="220" ry="220" fill="url(#hi)" />
+
+  <!-- Pressed-tile inner outline -->
+  <rect x="72" y="72" width="880" height="880" rx="180" ry="180"
+        fill="none" stroke="#080508" stroke-opacity="0.4" stroke-width="2" />
+
+  <!-- Amber glow behind the ember -->
+  <rect x="0" y="0" width="1024" height="1024" fill="url(#glow)" />
 
   <!-- Left bracket { -->
-  <text x="200" y="580" font-family="monospace" font-size="420" font-weight="700" fill="#E0E7FF" opacity="0.9">{</text>
+  <path d="M 346 248
+           L 276 260
+           L 276 500
+           L 218 560
+           L 276 620
+           L 276 860
+           L 346 872"
+        fill="none" stroke="#F1EBE2" stroke-width="30"
+        stroke-linecap="round" stroke-linejoin="round" />
 
   <!-- Right bracket } -->
-  <text x="560" y="580" font-family="monospace" font-size="420" font-weight="700" fill="#E0E7FF" opacity="0.9">}</text>
+  <path d="M 678 248
+           L 748 260
+           L 748 500
+           L 806 560
+           L 748 620
+           L 748 860
+           L 678 872"
+        fill="none" stroke="#F1EBE2" stroke-width="30"
+        stroke-linecap="round" stroke-linejoin="round" />
 
-  <!-- Magnifying glass circle -->
-  <circle cx="640" cy="340" r="140" fill="none" stroke="#FFFFFF" stroke-width="40" opacity="0.95" />
+  <!-- Ember (stylised teardrop) -->
+  <path d="M 512 436
+           C 460 510, 432 570, 432 620
+           C 432 688, 472 730, 512 730
+           C 552 730, 592 688, 592 620
+           C 592 570, 564 510, 512 436 Z"
+        fill="url(#ember)" />
 
-  <!-- Magnifying glass handle -->
-  <line x1="740" y1="440" x2="850" y2="550" stroke="#FFFFFF" stroke-width="40" stroke-linecap="round" opacity="0.95" />
+  <!-- Inner ember highlight -->
+  <path d="M 506 500
+           C 484 540, 474 572, 474 600
+           C 474 636, 492 656, 510 656
+           C 516 656, 520 646, 520 628
+           C 520 586, 518 540, 506 500 Z"
+        fill="#FFC673" opacity="0.55" />
 
-  <!-- Checkmark inside magnifying glass -->
-  <polyline points="570,340 620,390 710,280" fill="none" stroke="#34D399" stroke-width="36" stroke-linecap="round" stroke-linejoin="round" />
+  <!-- Amber baseline + three dim dots (findings hint) -->
+  <line x1="372" y1="800" x2="652" y2="800" stroke="#FFC673" stroke-width="6" stroke-linecap="round" />
+  <circle cx="478" cy="830" r="5" fill="#C8BEAF" opacity="0.6" />
+  <circle cx="512" cy="830" r="5" fill="#C8BEAF" opacity="0.6" />
+  <circle cx="546" cy="830" r="5" fill="#C8BEAF" opacity="0.6" />
 </svg>

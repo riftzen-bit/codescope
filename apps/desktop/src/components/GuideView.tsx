@@ -109,10 +109,10 @@ const GUIDE_STEPS: GuideStep[] = [
         <text x="146" y="57" textAnchor="middle" fontSize="12" fontWeight="700" fill="var(--color-primary)">87</text>
         {/* Finding items */}
         <rect x="116" y="78" width="60" height="12" rx="3" stroke="var(--color-text)" strokeWidth="1" fill="var(--color-bg-secondary)" opacity="0.8"/>
-        <rect x="119" y="81" width="4" height="6" rx="1" fill="#DC2626" opacity="0.8"/>
+        <rect x="119" y="81" width="4" height="6" rx="1" fill="var(--sev-critical)" opacity="0.9"/>
         <rect x="127" y="83" width="30" height="3" rx="1" fill="var(--color-text)" opacity="0.3"/>
         <rect x="116" y="96" width="60" height="12" rx="3" stroke="var(--color-text)" strokeWidth="1" fill="var(--color-bg-secondary)" opacity="0.8"/>
-        <rect x="119" y="99" width="4" height="6" rx="1" fill="#CA8A04" opacity="0.8"/>
+        <rect x="119" y="99" width="4" height="6" rx="1" fill="var(--sev-warning)" opacity="0.9"/>
         <rect x="127" y="101" width="38" height="3" rx="1" fill="var(--color-text)" opacity="0.3"/>
       </svg>
     ),
@@ -157,10 +157,10 @@ const GUIDE_STEPS: GuideStep[] = [
       <svg viewBox="0 0 200 140" fill="none" xmlns="http://www.w3.org/2000/svg">
         {/* Finding card */}
         <rect x="24" y="18" width="152" height="48" rx="5" stroke="var(--color-text)" strokeWidth="1.5" fill="var(--color-bg-secondary)"/>
-        <rect x="24" y="18" width="3" height="48" rx="1.5" fill="#DC2626"/>
+        <rect x="24" y="18" width="3" height="48" rx="1.5" fill="var(--sev-critical)"/>
         {/* Severity badge */}
-        <rect x="32" y="26" width="40" height="13" rx="3" fill="#DC2626" opacity="0.12" stroke="#DC2626" strokeWidth="1"/>
-        <text x="52" y="36" textAnchor="middle" fontSize="8" fontWeight="700" fill="#DC2626">CRITICAL</text>
+        <rect x="32" y="26" width="40" height="13" rx="3" fill="var(--sev-critical)" opacity="0.14" stroke="var(--sev-critical)" strokeWidth="1"/>
+        <text x="52" y="36" textAnchor="middle" fontSize="8" fontWeight="700" fill="var(--sev-critical)">CRITICAL</text>
         {/* Line number badge */}
         <rect x="148" y="26" width="24" height="13" rx="3" fill="var(--color-bg-secondary)" stroke="var(--color-primary)" strokeWidth="1"/>
         <text x="160" y="36" textAnchor="middle" fontSize="8" fill="var(--color-primary)">L:42</text>
@@ -171,13 +171,13 @@ const GUIDE_STEPS: GuideStep[] = [
         <rect x="32" y="61" width="110" height="4" rx="1.5" fill="var(--color-text)" opacity="0.2"/>
         {/* Warning card */}
         <rect x="24" y="76" width="152" height="36" rx="5" stroke="var(--color-text)" strokeWidth="1.5" fill="var(--color-bg-secondary)"/>
-        <rect x="24" y="76" width="3" height="36" rx="1.5" fill="#CA8A04"/>
-        <rect x="32" y="83" width="36" height="11" rx="3" fill="#CA8A04" opacity="0.12" stroke="#CA8A04" strokeWidth="1"/>
-        <text x="50" y="92" textAnchor="middle" fontSize="8" fontWeight="700" fill="#CA8A04">WARN</text>
+        <rect x="24" y="76" width="3" height="36" rx="1.5" fill="var(--sev-warning)"/>
+        <rect x="32" y="83" width="36" height="11" rx="3" fill="var(--sev-warning)" opacity="0.14" stroke="var(--sev-warning)" strokeWidth="1"/>
+        <text x="50" y="92" textAnchor="middle" fontSize="8" fontWeight="700" fill="var(--sev-warning)">WARN</text>
         <rect x="32" y="98" width="120" height="4" rx="1.5" fill="var(--color-text)" opacity="0.2"/>
         {/* Info card */}
         <rect x="24" y="122" width="152" height="12" rx="5" stroke="var(--color-text)" strokeWidth="1" fill="var(--color-bg-secondary)" opacity="0.5"/>
-        <rect x="24" y="122" width="3" height="12" rx="1.5" fill="#0284C7" opacity="0.6"/>
+        <rect x="24" y="122" width="3" height="12" rx="1.5" fill="var(--sev-info)" opacity="0.7"/>
         <rect x="32" y="125" width="100" height="4" rx="1.5" fill="var(--color-text)" opacity="0.15"/>
       </svg>
     ),
