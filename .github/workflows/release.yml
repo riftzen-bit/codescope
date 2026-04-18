@@ -46,3 +46,17 @@ jobs:
         run: pnpm --filter @code-review/desktop exec electron-builder --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set release notes and publish
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          NOTES="RELEASE_NOTES_${VERSION}.md"
+          if [ -f "$NOTES" ]; then
+            gh release edit "$GITHUB_REF_NAME" --notes-file "$NOTES" --draft=false
+          else
+            gh release edit "$GITHUB_REF_NAME" --draft=false
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
